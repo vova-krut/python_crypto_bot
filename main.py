@@ -1,16 +1,9 @@
-from telegram_bot import TelegramBot
-from dotenv import load_dotenv
-import os
+from src.database import connect_to_database
+from src.create_tables import create_tables
+from src.delete_tables import delete_tables
 
 
-def main():
-    load_dotenv()
-    bot_token = os.getenv('BOT_TOKEN')
-
-    tg_bot = TelegramBot(bot_token)
-
-    tg_bot.run()
-
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    conn = connect_to_database()
+    delete_tables(conn)
+    create_tables(conn)
