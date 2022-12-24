@@ -1,0 +1,10 @@
+[
+    {
+        "operation_name": "buy",
+        "description": "user makes buy transaction"
+    },
+    {
+        "operation_name": "sell",
+        "description": "user makes sell transaction"
+    }
+]

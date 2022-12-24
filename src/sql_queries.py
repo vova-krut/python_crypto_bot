@@ -45,3 +45,9 @@ delete_users_table = "DROP TABLE IF EXISTS users;"
 
 create_queries = [create_currencies_table, create_operations_table, create_users_table, create_transactions_table]
 delete_queries = [delete_currencies_table, delete_operations_table, delete_users_table, delete_transactions_table]
+
+
+insert_from_json = """
+    COPY {table_name}
+    FROM '{file_name}';
+"""
