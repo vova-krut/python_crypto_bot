@@ -5,7 +5,6 @@ import psycopg2
 class DbConnection:
     def __init__(self) -> None:
         self.__connection = self.__initDbConnect()
-        self.__connection.autocommit = True
         self.__createTables()
 
     def __initDbConnect(self):
@@ -19,6 +18,7 @@ class DbConnection:
                                 email VARCHAR(255) NOT NULL UNIQUE,
                                 password VARCHAR(255) NOT NULL,
                                 name VARCHAR(255) NOT NULL)''')
+            self.__connection.commit()
 
     def get_connection(self):
         return self.__connection
