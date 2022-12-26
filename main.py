@@ -1,11 +1,11 @@
-from telegram_bot import TelegramBot
+from src.telegram_bot import TelegramBot
 from dotenv import load_dotenv
-import os
+from os import getenv
 
 
 def main():
     load_dotenv()
-    bot_token = os.getenv('BOT_TOKEN')
+    bot_token = getenv('BOT_TOKEN')
 
     tg_bot = TelegramBot(bot_token)
 
