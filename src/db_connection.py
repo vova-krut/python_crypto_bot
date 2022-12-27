@@ -7,6 +7,7 @@ from src.sql_queries import delete_queries, create_queries
 class DbConnection:
     def __init__(self) -> None:
         self._connection = self._initDbConnect()
+
         self._deleteTables()
         self._createTables()
 

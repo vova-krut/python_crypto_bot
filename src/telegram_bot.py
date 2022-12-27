@@ -1,5 +1,5 @@
 from telegram import Update, ReplyKeyboardMarkup
-from src.db_connection import DbConnection
+from src.user_repository import UserRepository
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -11,13 +11,23 @@ from telegram.ext import (
 
 
 class TelegramBot:
-    BUY_CRYPTO, SELECT_CRYPTO, SELECT_AMOUNT = range(3)
+    SELECT_CRYPTO, SELECT_AMOUNT = range(2)
 
     def __init__(self, tg_token: str) -> None:
         self._app = ApplicationBuilder().token(tg_token).build()
-        self._db_connection = DbConnection().get_connection()
+        self._user_repository = UserRepository()
 
     async def _start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user = update.message.from_user
+        db_user = self._user_repository.find_user(user.id)
+
+        if not db_user:
+            self._user_repository.create_user(user.id)
+            await self._send_greetings(update)
+        else:
+            await update.message.reply_text(f'Welcome again!', reply_markup=self._create_keyboard())
+
+    async def _send_greetings(self, update: Update):
         await update.message.reply_text(f'Welcome to our tutorial bot!')
         await update.message.reply_text(f'It can help you to learn how to earn money trading crypto')
         await update.message.reply_text(f'You can emulate buying some coins and see if you made a good decision!')
@@ -47,7 +57,7 @@ class TelegramBot:
         amount = update.message.text
         crypto = context.user_data['crypto']
 
-        await update.message.reply_text(f'You want to buy {amount} of {crypto}.')
+        await update.message.reply_text(f'You want to buy {amount} of {crypto}.', reply_markup=self._create_keyboard())
 
         return ConversationHandler.END
 
