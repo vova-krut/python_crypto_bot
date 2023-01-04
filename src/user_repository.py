@@ -3,7 +3,7 @@ from src.db_connection import DbConnection
 
 class UserRepository:
     def __init__(self) -> None:
-        self._conn = DbConnection().get_connection()
+        self._conn = DbConnection.get_instance().get_connection()
 
     def create_user(self, user_id: int):
         with self._conn.cursor() as cursor:

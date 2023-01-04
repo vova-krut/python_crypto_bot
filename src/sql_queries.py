@@ -1,3 +1,5 @@
+import json
+
 create_transactions_table = '''
     CREATE TABLE IF NOT EXISTS transactions (
         id SERIAL PRIMARY KEY,
@@ -32,6 +34,14 @@ create_users_table = '''
         user_id INT
     );
 '''
+
+insert_currencies = []
+
+with open('./src/data/currencies.json') as f:
+    json_data = json.load(f)
+    for payload in json_data:
+        insert_currencies.append(
+            f"INSERT INTO currencies(currency_name) Values ('{payload['currency_name']}');")
 
 delete_transactions_table = 'DROP TABLE IF EXISTS transactions CASCADE;'
 delete_operations_table = 'DROP TABLE IF EXISTS operations CASCADE;'

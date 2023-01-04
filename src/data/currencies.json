@@ -1,0 +1,32 @@
+[
+    {
+        "currency_name": "BTC"
+    },
+    {
+        "currency_name": "ETH"
+    },
+    {
+        "currency_name": "BNB"
+    },
+    {
+        "currency_name": "DOGE"
+    },
+    {
+        "currency_name": "ADA"
+    },
+    {
+        "currency_name": "XRP"
+    },
+    {
+        "currency_name": "USDT"
+    },
+    {
+        "currency_name": "DOT"
+    },
+    {
+        "currency_name": "LINK"
+    },
+    {
+        "currency_name": "BCH"
+    }
+]

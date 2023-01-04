@@ -1,9 +1,10 @@
-from telegram import Update, ReplyKeyboardMarkup
 from src.user_repository import UserRepository
+from src.currency_repository import CurrencyRepository
+from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
-    CommandHandler,
     ContextTypes,
+    CommandHandler,
     ConversationHandler,
     MessageHandler,
     filters
@@ -16,6 +17,7 @@ class TelegramBot:
     def __init__(self, tg_token: str) -> None:
         self._app = ApplicationBuilder().token(tg_token).build()
         self._user_repository = UserRepository()
+        self._curr_repository = CurrencyRepository()
 
     async def _start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.message.from_user
