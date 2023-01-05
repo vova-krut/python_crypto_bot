@@ -1,22 +1,22 @@
 import json
 
 create_transactions_table = '''
-    CREATE TABLE IF NOT EXISTS transactions (
+    CREATE TABLE IF NOT EXISTS operations (
         id SERIAL PRIMARY KEY,
         user_id INT REFERENCES users (id) NOT NULL,
-        operation_id INT REFERENCES operations (id) NOT NULL,
-        quantity NUMERIC NOT NULL,
-        currency_id INT REFERENCES currencies (id) NOT NULL
+        currency_id INT REFERENCES currencies (id) NOT NULL,
+        type TEXT NOT NULL,
+        amount NUMERIC NOT NULL
     );
 '''
 
 
 create_operations_table = '''
-    CREATE TABLE IF NOT EXISTS operations (
+    CREATE TABLE IF NOT EXISTS transactions (
         id SERIAL PRIMARY KEY,
-        sender_id INT NOT NULL,
-        receiver_id INT NOT NULL,
-        amount INT NOT NULL,
+        sender_id INT REFERENCES users (id) NOT NULL,
+        receiver_id INT REFERENCES users (id) NOT NULL,
+        amount NUMERIC NOT NULL,
         date TIMESTAMP NOT NULL DEFAULT NOW()
     );
 '''
@@ -34,7 +34,16 @@ create_users_table = '''
     CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         user_id INT NOT NULL,
-        balance INT NOT NULL
+        balance NUMERIC NOT NULL
+    );
+'''
+
+create_user_currencies_table = '''
+    CREATE TABLE IF NOT EXISTS users_currencies (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users (id) NOT NULL,
+        currency_id INT REFERENCES currencies (id) NOT NULL,
+        amount NUMERIC NOT NULL
     );
 '''
 
@@ -50,12 +59,13 @@ delete_transactions_table = 'DROP TABLE IF EXISTS transactions CASCADE;'
 delete_operations_table = 'DROP TABLE IF EXISTS operations CASCADE;'
 delete_currencies_table = 'DROP TABLE IF EXISTS currencies CASCADE;'
 delete_users_table = 'DROP TABLE IF EXISTS users CASCADE;'
+delete_user_currencies_table = 'DROP TABLE IF EXISTS users_currencies CASCADE'
 
 
-create_queries = [create_currencies_table, create_operations_table,
-                  create_users_table, create_transactions_table]
+create_queries = [create_users_table, create_currencies_table,
+                  create_operations_table, create_transactions_table, create_user_currencies_table]
 delete_queries = [delete_users_table, delete_transactions_table,
-                  delete_currencies_table, delete_operations_table]
+                  delete_currencies_table, delete_operations_table, delete_user_currencies_table]
 
 
 insert_from_json = '''

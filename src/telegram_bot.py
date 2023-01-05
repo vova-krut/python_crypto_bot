@@ -58,6 +58,9 @@ class TelegramBot:
     async def _select_amount(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = update.message.text
         crypto = context.user_data['crypto']
+        user_id = update.message.from_user.id
+
+        self._curr_repository.buy_currency_for_user(user_id, crypto, amount)
 
         await update.message.reply_text(f'You want to buy {amount} of {crypto}.', reply_markup=self._create_keyboard())
 
