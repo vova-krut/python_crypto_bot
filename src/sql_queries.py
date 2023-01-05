@@ -14,8 +14,10 @@ create_transactions_table = '''
 create_operations_table = '''
     CREATE TABLE IF NOT EXISTS operations (
         id SERIAL PRIMARY KEY,
-        operation TEXT NOT NULL,
-        description TEXT NOT NULL
+        sender_id INT NOT NULL,
+        receiver_id INT NOT NULL,
+        amount INT NOT NULL,
+        date TIMESTAMP NOT NULL DEFAULT NOW()
     );
 '''
 
@@ -31,7 +33,8 @@ create_currencies_table = '''
 create_users_table = '''
     CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        user_id INT
+        user_id INT NOT NULL,
+        balance INT NOT NULL
     );
 '''
 

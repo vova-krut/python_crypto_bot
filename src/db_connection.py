@@ -55,7 +55,7 @@ class DbConnection:
             self._connection.commit()
             print(f'Successfully inserted currencies.')
 
-    def execute_query(self, query, vars):
+    def execute_query(self, query, vars=[]):
         with self._connection.cursor() as cursor:
             cursor.execute(query, vars)
 
@@ -63,6 +63,9 @@ class DbConnection:
 
             result = cursor.fetchall()
             return result
+
+    def get_connection(self):
+        return self._connection
 
 
 db_connection = DbConnection()
