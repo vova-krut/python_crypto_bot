@@ -7,12 +7,14 @@ class CurrencyRepository:
     def get_currencies(self):
         return db_connection.execute_query('SELECT * FROM currencies')
 
-    def get_currencies_for_user(self, userId: int):
-        return db_connection.execute_query('SELECT * FROM users_currencies WHERE user_id = %s', [userId])
+    def get_currencies_for_user(self, user_id: int):
+        return db_connection.execute_query('SELECT * FROM users_currencies WHERE user_id = %s', [user_id])
 
-    def buy_currency_for_user(self, userId: int, crypto_name: str, amount: str):
+    def send_crypto_to_user(self, sender_id: int, receiver_id: int, crypto_name: str, amount: int):
+        cryptos = self.get_currencies_for_user(sender_id)
 
-        crypto = self.get_currencies_for_user(userId)
+    def buy_currency_for_user(self, user_id: int, crypto_name: str, amount: str):
+        cryptos = self.get_currencies_for_user(user_id)
 
         headers = {
             'X-CMC_PRO_API_KEY': getenv('API_TOKEN')
