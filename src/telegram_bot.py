@@ -1,15 +1,15 @@
 from src.user_repository import UserRepository
 from src.currency_repository import CurrencyRepository
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     ContextTypes,
     CommandHandler,
     ConversationHandler,
+    CallbackQueryHandler,
     MessageHandler,
     filters
 )
-
 
 class TelegramBot:
     SELECT_CRYPTO, SELECT_AMOUNT = range(2)
@@ -42,16 +42,23 @@ class TelegramBot:
             keyboard, resize_keyboard=True, one_time_keyboard=True)
 
     async def _buy_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text(f'Sure! Which cryptocurrency do you want to buy?')
+        currencies = self._curr_repository.get_currencies()
+        currencies_names = [x[1] for x in currencies]
+        buttons = [InlineKeyboardButton(x, callback_data=x) for x in currencies_names]
+
+        keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+
+        markup = InlineKeyboardMarkup(keyboard)
+
+        await update.message.reply_text(f'Sure! Which cryptocurrency do you want to buy?', reply_markup=markup)
 
         return self.SELECT_CRYPTO
 
     async def _select_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        crypto = update.message.text
+        crypto = update.callback_query.data
         context.user_data['crypto'] = crypto
 
-        await update.message.reply_text(f'Got it, you want to buy {crypto}.')
-        await update.message.reply_text(f'How much do you want to buy?')
+        await update.callback_query.edit_message_text(f'Got it, now enter the amount of {crypto} you want to buy.')
 
         return self.SELECT_AMOUNT
 
@@ -75,10 +82,8 @@ class TelegramBot:
             entry_points=[MessageHandler(
                 filters.Text('Buy crypto'), self._buy_crypto)],
             states={
-                self.SELECT_CRYPTO: [MessageHandler(
-                    filters.TEXT, self._select_crypto)],
-                self.SELECT_AMOUNT: [MessageHandler(
-                    filters.TEXT, self._select_amount)]
+                self.SELECT_CRYPTO: [CallbackQueryHandler(self._select_crypto)],
+                self.SELECT_AMOUNT: [MessageHandler(filters.TEXT, self._select_amount)]
             },
             fallbacks=[CommandHandler('cancel', self._cancel)],
             allow_reentry=True
@@ -91,3 +96,4 @@ class TelegramBot:
 
     def stop(self):
         self._app.stop()
+
