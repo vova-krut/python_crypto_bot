@@ -1,31 +1,19 @@
 from psycopg2 import connect
+from dotenv import load_dotenv
 from os import getenv
 from sys import exit
 from src.sql_queries import delete_queries, create_queries, insert_currencies
 
 
 class DbConnection:
-    __instance = None
-
-    @staticmethod
-    def get_instance():
-        if not DbConnection.__instance:
-            DbConnection()
-
-        return DbConnection.__instance
-
     def __init__(self):
-        if not DbConnection.__instance:
-            raise Exception(
-                "DbConnection is a singleton class, use get_instance() instead")
-        else:
-            self._connection = self._initDbConnect()
+        load_dotenv()
 
-            self._deleteTables()
-            self._createTables()
-            self._insertCurrencies()
+        self._connection = self._initDbConnect()
 
-            DbConnection.__instance = self
+        self._deleteTables()
+        self._createTables()
+        self._insertCurrencies()
 
     def _initDbConnect(self):
         return connect(dbname=getenv('PG_DBNAME'), user=getenv('PG_USER'),
@@ -67,6 +55,14 @@ class DbConnection:
             self._connection.commit()
             print(f'Successfully inserted currencies.')
 
-    @staticmethod
-    def get_connection():
-        return DbConnection._connection
+    def execute_query(self, query, vars):
+        with self._connection.cursor() as cursor:
+            cursor.execute(query, vars)
+
+            self._connection.commit()
+
+            result = cursor.fetchall()
+            return result
+
+
+db_connection = DbConnection()

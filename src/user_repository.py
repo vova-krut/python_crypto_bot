@@ -1,24 +1,15 @@
-from src.db_connection import DbConnection
+from src.db_connection import db_connection
 
 
 class UserRepository:
-    def __init__(self) -> None:
-        self._conn = DbConnection.get_instance().get_connection()
-
     def create_user(self, user_id: int):
-        with self._conn.cursor() as cursor:
-            cursor.execute(
-                'INSERT INTO "users" (user_id) VALUES (%s) RETURNING *', [user_id])
-            self._conn.commit()
+        result = db_connection.execute_query(
+            'INSERT INTO "users" (user_id) VALUES (%s) RETURNING *', [user_id])
 
-            result = cursor.fetchall()
-            return result
+        return result
 
     def find_user(self, user_id: int):
-        with self._conn.cursor() as cursor:
-            cursor.execute(
-                'SELECT * FROM "users" WHERE user_id = %s', [user_id])
-            self._conn.commit()
+        result = db_connection.execute_query(
+            'SELECT * FROM "users" WHERE user_id = %s', [user_id])
 
-            result = cursor.fetchone()
-            return result
+        return result
