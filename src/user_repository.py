@@ -10,7 +10,7 @@ class UserRepository:
         return db_connection.execute_query(
             'SELECT * FROM "users" WHERE user_id = %s', [user_id])
 
-    def send_money(sender_id: int, receiver_id: int, amount: int):
+    def send_money(self, sender_id: int, receiver_id: int, amount: int):
         with db_connection.get_connection().cursor() as cursor:
             cursor.execute(
                 'UPDATE users SET balance = balance - %s WHERE id = %s', [amount, sender_id])
