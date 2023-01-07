@@ -74,15 +74,11 @@ class TelegramBot:
             self._curr_repository.buy_currency_for_user(
                 user_id, crypto, amount)
 
-            await update.message.reply_text(f'You want to buy {amount} of {crypto}.', reply_markup=self._create_keyboard())
+            await update.message.reply_text(f'You have successfully bought {amount} of {crypto}.', reply_markup=self._create_keyboard())
 
             return ConversationHandler.END
         except ValueError as e:
             await update.message.reply_text(str(e), reply_markup=self._create_keyboard())
-            return ConversationHandler.END
-        except Exception as e:
-            print(e)
-            await update.message.reply_text('Unexpected error occurred', reply_markup=self._create_keyboard())
             return ConversationHandler.END
 
     async def _make_transaction(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -116,19 +112,24 @@ class TelegramBot:
         return self.SELECT_TRANSACTION_AMOUNT
 
     async def _select_transaction_amount(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        amount = update.message.text
-        crypto = context.user_data['crypto']
-        receiver_id = context.user_data['receiver_id']
-        user_id = update.message.from_user.id
+        try:
+            amount = update.message.text
+            crypto = context.user_data['crypto']
+            receiver_id = context.user_data['receiver_id']
+            sender_id = update.message.from_user.id
 
-        # Logic for transaction
+            self._curr_repository.send_crypto_to_user(
+                sender_id, receiver_id, crypto, amount)
 
-        await update.message.reply_text(f'You want to send {amount} of {crypto} to {receiver_id}.', reply_markup=self._create_keyboard())
+            await update.message.reply_text(f'You have successfully sent {amount} of {crypto} to {receiver_id}.', reply_markup=self._create_keyboard())
 
-        return ConversationHandler.END
+            return ConversationHandler.END
+        except ValueError as e:
+            await update.message.reply_text(str(e), reply_markup=self._create_keyboard())
+            return ConversationHandler.END
 
     async def _cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text('Okay, lets go back')
+        await update.message.reply_text('Okay, lets go back', reply_markup=self._create_keyboard())
         return ConversationHandler.END
 
     def run(self):
