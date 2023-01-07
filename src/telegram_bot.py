@@ -17,6 +17,7 @@ class TelegramBot:
         6)
 
     def __init__(self, tg_token: str) -> None:
+        self._messages = []
         self._app = ApplicationBuilder().token(tg_token).build()
         self._user_repository = UserRepository()
         self._curr_repository = CurrencyRepository()
@@ -32,10 +33,14 @@ class TelegramBot:
             await update.message.reply_text(f'Welcome again!', reply_markup=self._create_keyboard())
 
     async def _send_greetings(self, update: Update):
-        await update.message.reply_text(f'Welcome to our tutorial bot!')
-        await update.message.reply_text(f'It can help you to learn how to earn money trading crypto')
-        await update.message.reply_text(f'You can emulate buying some coins and see if you made a good decision!')
-        await update.message.reply_text(f'Here are some options: ', reply_markup=self._create_keyboard())
+        greeting_texts = [f'Welcome to our tutorial bot!',
+                          f'It can help you to learn how to earn money trading crypto',
+                          f'You can emulate buying some coins and see if you made a good decision!'
+                          ]
+        for message_text in greeting_texts:
+            self._messages.append(await update.message.reply_text(message_text))
+        self._messages.append(await update.message.reply_text(f'Here are some options: ', reply_markup=self._create_keyboard()))
+
 
     def _create_keyboard(self):
         keyboard = [['Buy crypto', 'Make a transaction'], ['Check balance']]
@@ -44,6 +49,8 @@ class TelegramBot:
             keyboard, resize_keyboard=True, one_time_keyboard=True)
 
     async def _buy_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        self._messages = await self.clear_messages(update, self._messages)
+
         currencies = self._curr_repository.get_currencies()
         currencies_names = [x[1] for x in currencies]
         buttons = [InlineKeyboardButton(x, callback_data=x)
@@ -163,6 +170,11 @@ class TelegramBot:
         self._app.add_handler(send_crypto_handler)
 
         self._app.run_polling()
+
+    async def clear_messages(self, update: Update, messages):
+        for message in messages:
+            await update.get_bot().deleteMessage(chat_id=update.message.from_user.id, message_id=message.message_id)
+        return []
 
     def stop(self):
         self._app.stop()
