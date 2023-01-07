@@ -1,3 +1,5 @@
+import telegram
+
 from src.user_repository import UserRepository
 from src.currency_repository import CurrencyRepository
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
@@ -33,34 +35,19 @@ class TelegramBot:
             await update.message.reply_text(f'Welcome again!', reply_markup=self._create_keyboard())
 
     async def _send_greetings(self, update: Update):
-        greeting_texts = [f'Welcome to our tutorial bot!',
-                          f'It can help you to learn how to earn money trading crypto',
-                          f'You can emulate buying some coins and see if you made a good decision!'
-                          ]
-        for message_text in greeting_texts:
-            self._messages.append(await update.message.reply_text(message_text))
-        self._messages.append(await update.message.reply_text(f'Here are some options: ', reply_markup=self._create_keyboard()))
+        greeting_texts = [
+            "Welcome to our tutorial bot!",
+            "It can help you to learn how to earn money trading crypto",
+            "You can emulate buying some coins and see if you made a good decision!"
+        ]
 
-
-    def _create_keyboard(self):
-        keyboard = [['Buy crypto', 'Make a transaction'], ['Check balance']]
-
-        return ReplyKeyboardMarkup(
-            keyboard, resize_keyboard=True, one_time_keyboard=True)
+        self._messages.extend(await self._send_messages(update, greeting_texts))
+        self._messages.extend(await self._send_messages(update, "Here are some options: ", reply_markup=self._create_keyboard()))
 
     async def _buy_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        self._messages = await self.clear_messages(update, self._messages)
+        self._messages = await self._clear_messages(update, self._messages)
 
-        currencies = self._curr_repository.get_currencies()
-        currencies_names = [x[1] for x in currencies]
-        buttons = [InlineKeyboardButton(x, callback_data=x)
-                   for x in currencies_names]
-
-        keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
-
-        markup = InlineKeyboardMarkup(keyboard)
-
-        await update.message.reply_text(f'Sure! Which cryptocurrency do you want to buy?', reply_markup=markup)
+        await self._send_messages(update, "Sure! Which cryptocurrency do you want to buy?", reply_markup=self._get_crypto_buttons_markup())
 
         return self.SELECT_CRYPTO
 
@@ -89,24 +76,14 @@ class TelegramBot:
             return ConversationHandler.END
 
     async def _make_transaction(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-        await update.message.reply_text(f'Enter the receiver ID.')
+        await self._send_messages("Enter the receiver ID.")
         return self.PRINT_TRANSACTION_CRYPTO
 
     async def _print_transaction_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         receiver_id = update.message.text
         context.user_data['receiver_id'] = receiver_id
 
-        currencies = self._curr_repository.get_currencies()
-        currencies_names = [x[1] for x in currencies]
-        buttons = [InlineKeyboardButton(x, callback_data=x)
-                   for x in currencies_names]
-
-        keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
-
-        markup = InlineKeyboardMarkup(keyboard)
-
-        await update.message.reply_text(f'Good! Which cryptocurrency do you want to send?', reply_markup=markup)
+        await self._send_messages("Good! Which cryptocurrency do you want to send?", reply_markup=self._get_crypto_buttons_markup())
 
         return self.SELECT_TRANSACTION_CRYPTO
 
@@ -171,10 +148,35 @@ class TelegramBot:
 
         self._app.run_polling()
 
-    async def clear_messages(self, update: Update, messages):
+    async def _send_messages(self, update: Update, messages: list[str], reply_markup=None):
+        if isinstance(messages, str):
+            messages = [messages]
+        sent_messages = []
+        for message in messages:
+            sent_messages.append(await update.get_bot().send_message(chat_id=update.message.from_user.id, text=message, reply_markup=reply_markup))
+        return sent_messages
+
+    async def _clear_messages(self, update: Update, messages):
         for message in messages:
             await update.get_bot().deleteMessage(chat_id=update.message.from_user.id, message_id=message.message_id)
         return []
+
+    def _get_crypto_buttons_markup(self):
+        currencies = self._curr_repository.get_currencies()
+        currencies_names = [x[1] for x in currencies]
+        buttons = [InlineKeyboardButton(x, callback_data=x)
+                   for x in currencies_names]
+
+        keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+        markup = InlineKeyboardMarkup(keyboard)
+
+        return markup
+
+    def _create_keyboard(self):
+        keyboard = [['Buy crypto', 'Make a transaction'], ['Check balance']]
+
+        return ReplyKeyboardMarkup(
+            keyboard, resize_keyboard=True, one_time_keyboard=True)
 
     def stop(self):
         self._app.stop()
