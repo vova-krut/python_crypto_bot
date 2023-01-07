@@ -11,8 +11,10 @@ from telegram.ext import (
     filters
 )
 
+
 class TelegramBot:
-    SELECT_CRYPTO, SELECT_AMOUNT, SELECT_RECEIVER_ID, PRINT_TRANSACTION_CRYPTO, SELECT_TRANSACTION_CRYPTO, SELECT_TRANSACTION_AMOUNT = range(6)
+    SELECT_CRYPTO, SELECT_AMOUNT, SELECT_RECEIVER_ID, PRINT_TRANSACTION_CRYPTO, SELECT_TRANSACTION_CRYPTO, SELECT_TRANSACTION_AMOUNT = range(
+        6)
 
     def __init__(self, tg_token: str) -> None:
         self._app = ApplicationBuilder().token(tg_token).build()
@@ -44,7 +46,8 @@ class TelegramBot:
     async def _buy_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         currencies = self._curr_repository.get_currencies()
         currencies_names = [x[1] for x in currencies]
-        buttons = [InlineKeyboardButton(x, callback_data=x) for x in currencies_names]
+        buttons = [InlineKeyboardButton(x, callback_data=x)
+                   for x in currencies_names]
 
         keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
 
@@ -63,15 +66,24 @@ class TelegramBot:
         return self.SELECT_AMOUNT
 
     async def _select_amount(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        amount = update.message.text
-        crypto = context.user_data['crypto']
-        user_id = update.message.from_user.id
+        try:
+            amount = update.message.text
+            crypto = context.user_data['crypto']
+            user_id = update.message.from_user.id
 
-        self._curr_repository.buy_currency_for_user(user_id, crypto, amount)
+            self._curr_repository.buy_currency_for_user(
+                user_id, crypto, amount)
 
-        await update.message.reply_text(f'You want to buy {amount} of {crypto}.', reply_markup=self._create_keyboard())
+            await update.message.reply_text(f'You want to buy {amount} of {crypto}.', reply_markup=self._create_keyboard())
 
-        return ConversationHandler.END
+            return ConversationHandler.END
+        except ValueError as e:
+            await update.message.reply_text(str(e), reply_markup=self._create_keyboard())
+            return ConversationHandler.END
+        except Exception as e:
+            print(e)
+            await update.message.reply_text('Unexpected error occurred', reply_markup=self._create_keyboard())
+            return ConversationHandler.END
 
     async def _make_transaction(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -84,7 +96,8 @@ class TelegramBot:
 
         currencies = self._curr_repository.get_currencies()
         currencies_names = [x[1] for x in currencies]
-        buttons = [InlineKeyboardButton(x, callback_data=x) for x in currencies_names]
+        buttons = [InlineKeyboardButton(x, callback_data=x)
+                   for x in currencies_names]
 
         keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
 
@@ -108,14 +121,11 @@ class TelegramBot:
         receiver_id = context.user_data['receiver_id']
         user_id = update.message.from_user.id
 
-        #Logic for transaction
+        # Logic for transaction
 
         await update.message.reply_text(f'You want to send {amount} of {crypto} to {receiver_id}.', reply_markup=self._create_keyboard())
 
         return ConversationHandler.END
-
-
-
 
     async def _cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text('Okay, lets go back')
@@ -127,7 +137,8 @@ class TelegramBot:
                 filters.Text('Buy crypto'), self._buy_crypto)],
             states={
                 self.SELECT_CRYPTO: [CallbackQueryHandler(self._select_crypto)],
-                self.SELECT_AMOUNT: [MessageHandler(filters.TEXT, self._select_amount)]
+                self.SELECT_AMOUNT: [MessageHandler(
+                    filters.TEXT, self._select_amount)]
             },
             fallbacks=[CommandHandler('cancel', self._cancel)],
             allow_reentry=True
@@ -139,7 +150,8 @@ class TelegramBot:
             states={
                 self.PRINT_TRANSACTION_CRYPTO: [MessageHandler(filters.TEXT, self._print_transaction_crypto)],
                 self.SELECT_TRANSACTION_CRYPTO: [CallbackQueryHandler(self._select_transaction_crypto)],
-                self.SELECT_TRANSACTION_AMOUNT: [MessageHandler(filters.TEXT, self._select_transaction_amount)]
+                self.SELECT_TRANSACTION_AMOUNT: [MessageHandler(
+                    filters.TEXT, self._select_transaction_amount)]
             },
             fallbacks=[CommandHandler('cancel', self._cancel)],
             allow_reentry=True
@@ -153,4 +165,3 @@ class TelegramBot:
 
     def stop(self):
         self._app.stop()
-
