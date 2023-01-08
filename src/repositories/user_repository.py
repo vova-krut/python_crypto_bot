@@ -8,7 +8,7 @@ class UserRepository:
 
     def create_user(self, user_id: int):
         return db_connection.execute_query(
-            'INSERT INTO users (id, balance) VALUES (%s, %s) RETURNING *', [user_id, 1000])
+            'INSERT INTO users (id, balance) VALUES (%s, %s) RETURNING *', [user_id, 10000])
 
     def find_user(self, user_id: int):
         return db_connection.execute_query(
