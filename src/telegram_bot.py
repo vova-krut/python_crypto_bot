@@ -17,35 +17,37 @@ class TelegramBot:
         8)
 
     def __init__(self, tg_token: str) -> None:
-        self._messages = []
         self._app = ApplicationBuilder().token(tg_token).build()
         self._user_repository = UserRepository()
         self._curr_repository = CurrencyRepository()
 
     async def _start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        context.user_data["all_messages"] = [update.message]
+
         user = update.message.from_user
         db_user = self._user_repository.find_user(user.id)
 
         if not db_user:
             self._user_repository.create_user(user.id)
-            await self._send_greetings(update)
+            await self._send_greetings(update, context)
         else:
-            await update.message.reply_text(f'Welcome again!', reply_markup=self._create_keyboard())
+            await self._send_messages(update, context, f'Welcome again!', self._create_keyboard())
 
-    async def _send_greetings(self, update: Update):
+    async def _send_greetings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         greeting_texts = [
             "Welcome to our tutorial bot!",
             "It can help you to learn how to earn money trading crypto",
             "You can emulate buying some coins and see if you made a good decision!"
         ]
 
-        self._messages.extend(await self._send_messages(update, greeting_texts))
-        self._messages.extend(await self._send_messages(update, "Here are some options: ", reply_markup=self._create_keyboard()))
+        await self._send_messages(update, context, greeting_texts)
+        await self._send_messages(update, context, "Here are some options: ", self._create_keyboard())
 
     async def _buy_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        self._messages = await self._clear_messages(update, self._messages)
+        context.user_data["all_messages"].append(update.message)
+        context.user_data["all_messages"] = await self._clear_messages(update, context.user_data["all_messages"])
 
-        await self._send_messages(update, "Sure! Which cryptocurrency do you want to buy?", reply_markup=self._get_crypto_buttons_markup())
+        await self._send_messages(update, context, "Sure! Which cryptocurrency do you want to buy?", self._get_crypto_buttons_markup())
 
         return self.SELECT_CRYPTO
 
@@ -53,11 +55,14 @@ class TelegramBot:
         crypto = update.callback_query.data
         context.user_data['crypto'] = crypto
 
-        await update.callback_query.edit_message_text(f'Got it, now enter the amount of {crypto} you want to buy.')
+        await self._send_messages(update, context, f"Got it, now enter the amount of {crypto} you want to buy.")
 
         return self.SELECT_AMOUNT
 
     async def _select_amount(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        context.user_data["all_messages"].append(update.message)
+        context.user_data["all_messages"] = await self._clear_messages(update, context.user_data["all_messages"])
+
         try:
             amount = update.message.text
             crypto = context.user_data['crypto']
@@ -66,15 +71,16 @@ class TelegramBot:
             self._curr_repository.buy_currency_for_user(
                 user_id, crypto, amount)
 
-            await update.message.reply_text(f'You have successfully bought {amount} of {crypto}.', reply_markup=self._create_keyboard())
+            await self._send_messages(update, context, f"You have successfully bought {amount} of {crypto}.", self._create_keyboard())
 
             return ConversationHandler.END
         except ValueError as e:
-            await update.message.reply_text(str(e), reply_markup=self._create_keyboard())
+            await self._send_messages(update, context, str(e), self._create_keyboard())
             return ConversationHandler.END
 
     async def _sell_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self._send_messages(update, "Sure! Which cryptocurrency do you want to sell?", reply_markup=self._get_crypto_buttons_markup())
+        context.user_data["all_messages"].append(update.message)
+        await self._send_messages(update, context, "Sure! Which cryptocurrency do you want to sell?", self._get_crypto_buttons_markup())
 
         return self.SELECT_CRYPTO_TO_SELL
 
@@ -82,29 +88,31 @@ class TelegramBot:
         crypto = update.callback_query.data
         context.user_data['crypto'] = crypto
 
-        await self._send_messages(update, f"Got it, now enter the amount of {crypto} you want to sell.")
+        await self._send_messages(update, context, f"Got it, now enter the amount of {crypto} you want to sell.")
 
         return self.SELECT_AMOUNT_TO_SELL
 
     async def _select_amount_to_sell(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        context.user_data["all_messages"].append(update.message)
         amount = update.message.text
         crypto = context.user_data['crypto']
         sender_id = update.message.from_user.id
 
-        await self._send_messages(update, f'You have successfully sold {amount} of {crypto} for ENTER BLYAT AMOUNT.', self._create_keyboard())
+        await self._send_messages(update, context, f'You have successfully sold {amount} of {crypto} for ENTER BLYAT AMOUNT.', self._create_keyboard())
 
         return ConversationHandler.END
 
-
     async def _make_transaction(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self._send_messages(update, "Enter the receiver ID.")
+        context.user_data["all_messages"].append(update.message)
+        await self._send_messages(update, context, "Enter the receiver ID.")
         return self.PRINT_TRANSACTION_CRYPTO
 
     async def _print_transaction_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        context.user_data["all_messages"].append(update.message)
         receiver_id = update.message.text
         context.user_data['receiver_id'] = receiver_id
 
-        await self._send_messages(update, "Good! Which cryptocurrency do you want to send?", reply_markup=self._get_crypto_buttons_markup())
+        await self._send_messages(update, context, "Good! Which cryptocurrency do you want to send?", reply_markup=self._get_crypto_buttons_markup())
 
         return self.SELECT_TRANSACTION_CRYPTO
 
@@ -112,7 +120,7 @@ class TelegramBot:
         crypto = update.callback_query.data
         context.user_data['crypto'] = crypto
 
-        await update.callback_query.edit_message_text(f'Got it, now enter the amount of {crypto} you want to send.')
+        await self._send_messages(update, context, f"Got it, now enter the amount of {crypto} you want to send.")
 
         return self.SELECT_TRANSACTION_AMOUNT
 
@@ -125,9 +133,10 @@ class TelegramBot:
             currency_balance_table = "\n".join(currency_vs_balance)
         except:
             currency_balance_table = "You don't have any currency available."
-        self._messages.extend(await self._send_messages(update, [f"Currency balance:\n{currency_balance_table}", f"USD balance: {usd_balance}"], reply_markup=self._create_keyboard()))
+        await self._send_messages(update, context, [f"Currency balance:\n{currency_balance_table}", f"USD balance: {usd_balance}"], reply_markup=self._create_keyboard())
 
     async def _select_transaction_amount(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        context.user_data["all_messages"].append(update.message)
         try:
             amount = update.message.text
             crypto = context.user_data['crypto']
@@ -137,26 +146,30 @@ class TelegramBot:
             self._curr_repository.send_crypto_to_user(
                 sender_id, receiver_id, crypto, amount)
 
-            await update.message.reply_text(f'You have successfully sent {amount} of {crypto} to {receiver_id}.', reply_markup=self._create_keyboard())
+            await self._send_messages(update, context, f"You have successfully sent {amount} of {crypto} to {receiver_id}.", self._create_keyboard())
 
             return ConversationHandler.END
         except ValueError as e:
-            await update.message.reply_text(str(e), reply_markup=self._create_keyboard())
+            await self._send_messages(update, context, str(e), self._create_keyboard())
             return ConversationHandler.END
 
     async def _cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text('Okay, lets go back', reply_markup=self._create_keyboard())
+        await self._send_messages(update, context, "Okay, lets go back", self._create_keyboard())
+        #context.user_data["all_messages"] = self._clear_messages(update, context.user_data["all_messages"])
         return ConversationHandler.END
 
-    async def _send_messages(self, update: Update, messages: list[str], reply_markup=None):
+    async def _send_messages(self, update: Update, context: ContextTypes.DEFAULT_TYPE, messages: list[str], reply_markup=None):
         if isinstance(messages, str):
             messages = [messages]
         sent_messages = []
         for message in messages:
             sent_messages.append(await update.get_bot().send_message(chat_id=self._get_chat_id(update), text=message, reply_markup=reply_markup))
-        return sent_messages
+
+        context.user_data["all_messages"].extend(sent_messages)
+
 
     async def _clear_messages(self, update: Update, messages):
+
         for message in messages:
             await update.get_bot().deleteMessage(chat_id=update.message.from_user.id, message_id=message.message_id)
         return []
@@ -174,7 +187,6 @@ class TelegramBot:
         elif update.callback_query is not None:
             chat_id = update.callback_query.from_user.id
         return chat_id
-
 
     def _get_crypto_buttons_markup(self):
         currencies = self._curr_repository.get_currencies()
