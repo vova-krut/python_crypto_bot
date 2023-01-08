@@ -7,13 +7,33 @@ class CurrencyRepository:
     def get_currencies(self):
         return db_connection.execute_query('SELECT * FROM currencies')
 
+    def get_operations_for_user(self, user_id: int):
+        select_user_operations_query = """
+            SELECT currency_name, type, amount, date 
+            FROM operations o
+            JOIN currencies c
+            ON o.currency_id = c.id
+            WHERE user_id = %s
+        """
+        return db_connection.execute_query(select_user_operations_query, [user_id])
+
+    def get_transactions_for_user(self, user_id: int):
+        select_user_transactions_query = """
+            SELECT sender_id, receiver_id, currency_name, amount, date 
+            FROM transactions t
+            JOIN currencies c
+            ON t.currency_id = c.id
+            WHERE user_id = %s
+        """
+        return db_connection.execute_query(select_user_transactions_query, [user_id])
+
     def get_currencies_for_user(self, user_id: int):
         select_currency_balance_query = """
             SELECT currency_name, amount 
             FROM users_currencies AS u
             JOIN currencies AS c
             ON u.currency_id = c.id
-            WHERE user_id=%s
+            WHERE user_id = %s
         """
         currency_balance = db_connection.execute_query(
             select_currency_balance_query, [user_id])
