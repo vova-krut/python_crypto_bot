@@ -23,7 +23,7 @@ class CurrencyRepository:
             FROM transactions t
             JOIN currencies c
             ON t.currency_id = c.id
-            WHERE user_id = %s
+            WHERE sender_id = %s
         """
         return db_connection.execute_query(select_user_transactions_query, [user_id])
 
@@ -153,13 +153,15 @@ class CurrencyRepository:
         if not user_crypto_amount:
             raise ValueError('User does not own this crypto')
 
-        if user_crypto_amount[0][0] < amount:
+        if user_crypto_amount[0][0] < float(amount):
             raise ValueError(f'User does not have {amount} of {crypto_name}')
 
         price = self._get_price(crypto_name, amount)
 
         self._remove_crypto_from_user(
             user_id, crypto_id, user_crypto_amount[0][0], amount, price)
+
+        return price
 
     def _remove_crypto_from_user(self, user_id: int, crypto_id: int, user_amount: float, sold_amount: str, price: float):
         conn = db_connection.get_connection()

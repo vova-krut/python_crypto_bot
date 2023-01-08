@@ -98,9 +98,11 @@ class TelegramBot:
         context.user_data["all_messages"] = await self._clear_messages(update, context.user_data["all_messages"])
         amount = update.message.text
         crypto = context.user_data['crypto']
-        sender_id = update.message.from_user.id
+        user_id = update.message.from_user.id
 
-        await self._send_messages(update, context, f'You have successfully sold {amount} of {crypto} for ENTER BLYAT AMOUNT.', self._create_keyboard())
+        price = self._curr_repository.sell_crypto(user_id, crypto, amount)
+
+        await self._send_messages(update, context, f'You have successfully sold {amount} of {crypto} for {price}.', self._create_keyboard())
 
         return ConversationHandler.END
 
@@ -158,6 +160,28 @@ class TelegramBot:
             await self._send_messages(update, context, str(e), self._create_keyboard())
             return ConversationHandler.END
 
+    async def _get_account_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = update.message.from_user.id
+
+        operations = self._curr_repository.get_operations_for_user(user_id)
+        transactions = self._curr_repository.get_transactions_for_user(user_id)
+
+        try:
+            operation_line = [
+                f"{operation[0]}: {operation[1]} {operation[2]} {operation[3]}" for operation in operations]
+            operations_table = "\n".join(operation_line)
+        except:
+            operations_table = "You don't have any operations yet."
+
+        try:
+            transaction_line = [
+                f"Sent {transaction[3]} of {transaction[2]} to {transaction[1]} on {transaction[4]}" for transaction in transactions]
+            transactions_table = "\n".join(transaction_line)
+        except:
+            transactions_table = "You don't have any transactions yet."
+
+        await self._send_messages(update, context, [f"Operation history:\n{operations_table}", f"Transactions history:\n{transactions_table} "], reply_markup=self._create_keyboard())
+
     async def _cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await self._send_messages(update, context, "Okay, lets go back", self._create_keyboard())
         return ConversationHandler.END
@@ -170,7 +194,6 @@ class TelegramBot:
             sent_messages.append(await update.get_bot().send_message(chat_id=self._get_chat_id(update), text=message, reply_markup=reply_markup))
 
         context.user_data["all_messages"].extend(sent_messages)
-
 
     async def _clear_messages(self, update: Update, messages):
 
@@ -204,7 +227,8 @@ class TelegramBot:
         return markup
 
     def _create_keyboard(self):
-        keyboard = [['Buy crypto', 'Sell crypto'], ['Make a transaction', 'Check balance'], ['Check history']]
+        keyboard = [['Buy crypto', 'Sell crypto'], [
+            'Make a transaction', 'Check balance'], ['Check history']]
 
         return ReplyKeyboardMarkup(
             keyboard, resize_keyboard=True, one_time_keyboard=True)
@@ -227,7 +251,8 @@ class TelegramBot:
                 filters.Text('Sell crypto'), self._sell_crypto)],
             states={
                 self.SELECT_CRYPTO_TO_SELL: [CallbackQueryHandler(self._select_crypto_to_sell)],
-                self.SELECT_AMOUNT_TO_SELL: [MessageHandler(filters.TEXT, self._select_amount_to_sell)]
+                self.SELECT_AMOUNT_TO_SELL: [MessageHandler(
+                    filters.TEXT, self._select_amount_to_sell)]
             },
             fallbacks=[CommandHandler('cancel', self._cancel)],
             allow_reentry=True
@@ -246,13 +271,18 @@ class TelegramBot:
             allow_reentry=True
         )
 
-        get_balance = MessageHandler(filters.Text("Check balance"), self._get_balance)
+        get_balance = MessageHandler(filters.Text(
+            "Check balance"), self._get_balance)
+
+        get_history = MessageHandler(filters.Text(
+            'Check history'), self._get_account_history)
 
         self._app.add_handler(CommandHandler('start', self._start))
         self._app.add_handler(buy_crypto_handler)
         self._app.add_handler(sell_crypto_handler)
         self._app.add_handler(send_crypto_handler)
         self._app.add_handler(get_balance)
+        self._app.add_handler(get_history)
 
         self._app.run_polling()
 
