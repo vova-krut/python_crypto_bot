@@ -4,7 +4,7 @@ from src.currency_repository import CurrencyRepository
 
 class UserRepository:
     def __init__(self) -> None:
-        self._curr_repository = CurrencyRepository()
+        self._currency_repository = CurrencyRepository()
 
     def create_user(self, user_id: int):
         return db_connection.execute_query(
@@ -15,8 +15,7 @@ class UserRepository:
             'SELECT * FROM users WHERE id = %s', [user_id])
 
     def get_balance(self, user_id: int):
-        curr_balance = self._curr_repository.get_currencies_for_user(user_id)
-        usd_balance = db_connection.execute_query(
-            'SELECT balance FROM users WHERE id = %s', [user_id])
+        currency_balance = self._currency_repository.get_currencies_for_user(user_id)
+        usd_balance = db_connection.execute_query('SELECT balance FROM users WHERE id = %s', [user_id])[0][0]
 
-        return [*curr_balance, *usd_balance]
+        return currency_balance, usd_balance

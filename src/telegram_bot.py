@@ -76,14 +76,14 @@ class TelegramBot:
             return ConversationHandler.END
 
     async def _make_transaction(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self._send_messages("Enter the receiver ID.")
+        await self._send_messages(update, "Enter the receiver ID.")
         return self.PRINT_TRANSACTION_CRYPTO
 
     async def _print_transaction_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         receiver_id = update.message.text
         context.user_data['receiver_id'] = receiver_id
 
-        await self._send_messages("Good! Which cryptocurrency do you want to send?", reply_markup=self._get_crypto_buttons_markup())
+        await self._send_messages(update, "Good! Which cryptocurrency do you want to send?", reply_markup=self._get_crypto_buttons_markup())
 
         return self.SELECT_TRANSACTION_CRYPTO
 
@@ -94,6 +94,15 @@ class TelegramBot:
         await update.callback_query.edit_message_text(f'Got it, now enter the amount of {crypto} you want to send.')
 
         return self.SELECT_TRANSACTION_AMOUNT
+
+    async def _get_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        currency_balance, usd_balance = self._user_repository.get_balance(update.message.from_user.id)
+        try:
+            currency_vs_balance = [f"{currency_name}: {balance}" for currency_name, balance in currency_balance.items()]
+            currency_balance_table = "\n".join(currency_vs_balance)
+        except:
+            currency_balance_table = "You don't have any currency available."
+        self._messages.extend(await self._send_messages(update, [f"Currency balance:\n{currency_balance_table}", f"USD balance: {usd_balance}"]))
 
     async def _select_transaction_amount(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -142,9 +151,12 @@ class TelegramBot:
             allow_reentry=True
         )
 
+        get_balance = MessageHandler(filters.Text("Check balance"), self._get_balance)
+
         self._app.add_handler(CommandHandler('start', self._start))
         self._app.add_handler(buy_crypto_handler)
         self._app.add_handler(send_crypto_handler)
+        self._app.add_handler(get_balance)
 
         self._app.run_polling()
 

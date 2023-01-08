@@ -8,7 +8,15 @@ class CurrencyRepository:
         return db_connection.execute_query('SELECT * FROM currencies')
 
     def get_currencies_for_user(self, user_id: int):
-        return db_connection.execute_query('SELECT currency_id, amount FROM users_currencies WHERE user_id = %s', [user_id])
+        select_currency_balance_query = """
+            SELECT currency_name, amount 
+            FROM users_currencies AS u
+            JOIN currencies AS c
+            ON u.currency_id = c.id
+            WHERE user_id={user_id}
+        """
+        currency_balance = db_connection.execute_query(select_currency_balance_query.format(user_id=user_id))
+        return {currency_name: balance for currency_name, balance in currency_balance}
 
     def send_crypto_to_user(self, sender_id: int, receiver_id: int, crypto_name: str, amount: str):
         crypto_id = db_connection.execute_query(

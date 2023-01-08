@@ -9,17 +9,13 @@ class DbConnection:
     def __init__(self):
         load_dotenv()
 
-        self._connection = self._initDbConnect()
+        self._connection = self._init_db_connect()
 
-        self._deleteTables()
-        self._createTables()
-        self._insertCurrencies()
-
-    def _initDbConnect(self):
+    def _init_db_connect(self):
         return connect(dbname=getenv('PG_DBNAME'), user=getenv('PG_USER'),
                        password=getenv('PG_PASSWORD'), host=getenv('PG_HOST'))
 
-    def _deleteTables(self):
+    def delete_tables(self):
         with self._connection.cursor() as cursor:
             try:
                 for query in delete_queries:
@@ -31,7 +27,7 @@ class DbConnection:
             self._connection.commit()
             print(f'Successfully deleted tables.')
 
-    def _createTables(self):
+    def create_tables(self):
         with self._connection.cursor() as cursor:
             try:
                 for query in create_queries:
@@ -43,7 +39,7 @@ class DbConnection:
             self._connection.commit()
             print(f'Successfully created tables.')
 
-    def _insertCurrencies(self):
+    def insert_currencies(self):
         with self._connection.cursor() as cursor:
             try:
                 for query in insert_currencies:
@@ -67,5 +63,10 @@ class DbConnection:
     def get_connection(self):
         return self._connection
 
-
 db_connection = DbConnection()
+
+
+if __name__ == "__main__":
+    db_connection.delete_tables()
+    db_connection.create_tables()
+    db_connection.insert_currencies()
