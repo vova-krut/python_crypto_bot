@@ -13,8 +13,8 @@ from telegram.ext import (
 
 
 class TelegramBot:
-    SELECT_CRYPTO, SELECT_AMOUNT, SELECT_RECEIVER_ID, PRINT_TRANSACTION_CRYPTO, SELECT_TRANSACTION_CRYPTO, SELECT_TRANSACTION_AMOUNT = range(
-        6)
+    SELECT_CRYPTO, SELECT_AMOUNT, SELECT_RECEIVER_ID, PRINT_TRANSACTION_CRYPTO, SELECT_TRANSACTION_CRYPTO, SELECT_TRANSACTION_AMOUNT, SELECT_CRYPTO_TO_SELL, SELECT_AMOUNT_TO_SELL = range(
+        8)
 
     def __init__(self, tg_token: str) -> None:
         self._messages = []
@@ -73,6 +73,29 @@ class TelegramBot:
             await update.message.reply_text(str(e), reply_markup=self._create_keyboard())
             return ConversationHandler.END
 
+    async def _sell_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await self._send_messages(update, "Sure! Which cryptocurrency do you want to sell?", reply_markup=self._get_crypto_buttons_markup())
+
+        return self.SELECT_CRYPTO_TO_SELL
+
+    async def _select_crypto_to_sell(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        crypto = update.callback_query.data
+        context.user_data['crypto'] = crypto
+
+        await self._send_messages(update, f"Got it, now enter the amount of {crypto} you want to sell.")
+
+        return self.SELECT_AMOUNT_TO_SELL
+
+    async def _select_amount_to_sell(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        amount = update.message.text
+        crypto = context.user_data['crypto']
+        sender_id = update.message.from_user.id
+
+        await self._send_messages(update, f'You have successfully sold {amount} of {crypto} for ENTER BLYAT AMOUNT.', self._create_keyboard())
+
+        return ConversationHandler.END
+
+
     async def _make_transaction(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await self._send_messages(update, "Enter the receiver ID.")
         return self.PRINT_TRANSACTION_CRYPTO
@@ -130,13 +153,28 @@ class TelegramBot:
             messages = [messages]
         sent_messages = []
         for message in messages:
-            sent_messages.append(await update.get_bot().send_message(chat_id=update.message.from_user.id, text=message, reply_markup=reply_markup))
+            sent_messages.append(await update.get_bot().send_message(chat_id=self._get_chat_id(update), text=message, reply_markup=reply_markup))
         return sent_messages
 
     async def _clear_messages(self, update: Update, messages):
         for message in messages:
             await update.get_bot().deleteMessage(chat_id=update.message.from_user.id, message_id=message.message_id)
         return []
+
+    def _get_chat_id(self, update: Update):
+        chat_id = None
+        if update.message is not None:
+            chat_id = update.message.chat.id
+        elif update.channel_post is not None:
+            chat_id = update.channel_post.chat.id
+        elif update.inline_query is not None:
+            chat_id = update.inline_query.from_user.id
+        elif update.chosen_inline_result is not None:
+            chat_id = update.chosen_inline_result.from_user.id
+        elif update.callback_query is not None:
+            chat_id = update.callback_query.from_user.id
+        return chat_id
+
 
     def _get_crypto_buttons_markup(self):
         currencies = self._curr_repository.get_currencies()
@@ -150,7 +188,7 @@ class TelegramBot:
         return markup
 
     def _create_keyboard(self):
-        keyboard = [['Buy crypto', 'Make a transaction'], ['Check balance']]
+        keyboard = [['Buy crypto', 'Sell crypto'], ['Make a transaction', 'Check balance'], ['Check history']]
 
         return ReplyKeyboardMarkup(
             keyboard, resize_keyboard=True, one_time_keyboard=True)
@@ -163,6 +201,17 @@ class TelegramBot:
                 self.SELECT_CRYPTO: [CallbackQueryHandler(self._select_crypto)],
                 self.SELECT_AMOUNT: [MessageHandler(
                     filters.TEXT, self._select_amount)]
+            },
+            fallbacks=[CommandHandler('cancel', self._cancel)],
+            allow_reentry=True
+        )
+
+        sell_crypto_handler = ConversationHandler(
+            entry_points=[MessageHandler(
+                filters.Text('Sell crypto'), self._sell_crypto)],
+            states={
+                self.SELECT_CRYPTO_TO_SELL: [CallbackQueryHandler(self._select_crypto_to_sell)],
+                self.SELECT_AMOUNT_TO_SELL: [MessageHandler(filters.TEXT, self._select_amount_to_sell)]
             },
             fallbacks=[CommandHandler('cancel', self._cancel)],
             allow_reentry=True
@@ -181,11 +230,11 @@ class TelegramBot:
             allow_reentry=True
         )
 
-        get_balance = MessageHandler(filters.Text(
-            "Check balance"), self._get_balance)
+        get_balance = MessageHandler(filters.Text("Check balance"), self._get_balance)
 
         self._app.add_handler(CommandHandler('start', self._start))
         self._app.add_handler(buy_crypto_handler)
+        self._app.add_handler(sell_crypto_handler)
         self._app.add_handler(send_crypto_handler)
         self._app.add_handler(get_balance)
 
