@@ -80,6 +80,7 @@ class TelegramBot:
 
     async def _sell_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["all_messages"].append(update.message)
+        context.user_data["all_messages"] = await self._clear_messages(update, context.user_data["all_messages"])
         await self._send_messages(update, context, "Sure! Which cryptocurrency do you want to sell?", self._get_crypto_buttons_markup())
 
         return self.SELECT_CRYPTO_TO_SELL
@@ -94,6 +95,7 @@ class TelegramBot:
 
     async def _select_amount_to_sell(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["all_messages"].append(update.message)
+        context.user_data["all_messages"] = await self._clear_messages(update, context.user_data["all_messages"])
         amount = update.message.text
         crypto = context.user_data['crypto']
         sender_id = update.message.from_user.id
@@ -104,6 +106,7 @@ class TelegramBot:
 
     async def _make_transaction(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["all_messages"].append(update.message)
+        context.user_data["all_messages"] = await self._clear_messages(update, context.user_data["all_messages"])
         await self._send_messages(update, context, "Enter the receiver ID.")
         return self.PRINT_TRANSACTION_CRYPTO
 
@@ -125,6 +128,7 @@ class TelegramBot:
         return self.SELECT_TRANSACTION_AMOUNT
 
     async def _get_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        context.user_data["all_messages"].append(update.message)
         currency_balance, usd_balance = self._user_repository.get_balance(
             update.message.from_user.id)
         try:
@@ -137,6 +141,7 @@ class TelegramBot:
 
     async def _select_transaction_amount(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["all_messages"].append(update.message)
+        context.user_data["all_messages"] = await self._clear_messages(update, context.user_data["all_messages"])
         try:
             amount = update.message.text
             crypto = context.user_data['crypto']
@@ -155,7 +160,6 @@ class TelegramBot:
 
     async def _cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await self._send_messages(update, context, "Okay, lets go back", self._create_keyboard())
-        #context.user_data["all_messages"] = self._clear_messages(update, context.user_data["all_messages"])
         return ConversationHandler.END
 
     async def _send_messages(self, update: Update, context: ContextTypes.DEFAULT_TYPE, messages: list[str], reply_markup=None):
