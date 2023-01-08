@@ -13,9 +13,10 @@ class CurrencyRepository:
             FROM users_currencies AS u
             JOIN currencies AS c
             ON u.currency_id = c.id
-            WHERE user_id={user_id}
+            WHERE user_id=%s
         """
-        currency_balance = db_connection.execute_query(select_currency_balance_query.format(user_id=user_id))
+        currency_balance = db_connection.execute_query(
+            select_currency_balance_query, [user_id])
         return {currency_name: balance for currency_name, balance in currency_balance}
 
     def send_crypto_to_user(self, sender_id: int, receiver_id: int, crypto_name: str, amount: str):
@@ -48,6 +49,10 @@ class CurrencyRepository:
                 'UPDATE users_currencies SET amount = amount - %s WHERE user_id = %s AND currency_id = %s', [amount, sender_id, crypto_id])
             cursor.execute(
                 'UPDATE users_currencies SET amount = amount + %s WHERE user_id = %s AND currency_id = %s', [amount, receiver_id, crypto_id])
+            cursor.execute(
+                "INSERT INTO transactions(sender_id, receiver_id, currency_id, amount) VALUES(%s, %s, %s, %s)",
+                [sender_id, receiver_id, crypto_id, amount]
+            )
             conn.commit()
 
     def _create_crypto_for_user(self, sender_id: int, receiver_id: int, crypto_id: int, amount: str):
@@ -57,6 +62,10 @@ class CurrencyRepository:
                 'UPDATE users_currencies SET amount = amount - %s WHERE user_id = %s AND currency_id = %s', [amount, sender_id, crypto_id])
             cursor.execute(
                 'INSERT INTO users_currencies(user_id, currency_id, amount) VALUES(%s, %s, %s)', [receiver_id, crypto_id, amount])
+            cursor.execute(
+                "INSERT INTO transactions(sender_id, receiver_id, currency_id, amount) VALUES(%s, %s, %s, %s)",
+                [sender_id, receiver_id, crypto_id, amount]
+            )
             conn.commit()
 
     def buy_currency_for_user(self, user_id: int, crypto_name: str, amount: str):
@@ -70,7 +79,7 @@ class CurrencyRepository:
 
         price = self._get_price(crypto_name, amount)
 
-        if (price > balance):
+        if price > balance:
             raise ValueError("You don't have enough money to buy it")
 
         if user_has_crypto:
@@ -78,24 +87,6 @@ class CurrencyRepository:
             return
 
         self._add_user_crypto(user_id, crypto_id, amount, price)
-
-    def _update_user_crypto(self, user_id: int, crypto_id: int, amount: str, price: float):
-        conn = db_connection.get_connection()
-        with conn.cursor() as cursor:
-            cursor.execute(
-                'UPDATE users_currencies SET amount = amount + %s WHERE user_id = %s AND currency_id = %s', [amount, user_id, crypto_id])
-            cursor.execute(
-                'UPDATE users SET balance = balance - %s WHERE id = %s', [price, user_id])
-            conn.commit()
-
-    def _add_user_crypto(self, user_id: int, crypto_id: int, amount: str, price: float):
-        conn = db_connection.get_connection()
-        with conn.cursor() as cursor:
-            cursor.execute(
-                'INSERT INTO users_currencies(user_id, currency_id, amount) VALUES(%s, %s, %s)', [user_id, crypto_id, amount])
-            cursor.execute(
-                'UPDATE users SET balance = balance - %s WHERE id = %s', [price, user_id])
-            conn.commit()
 
     def _get_price(self, crypto_name: str, amount: str):
         headers = {
@@ -110,3 +101,57 @@ class CurrencyRepository:
         )['data'][crypto_name]['quote']['USD']['price']
 
         return coin_price * float(amount)
+
+    def _update_user_crypto(self, user_id: int, crypto_id: int, amount: str, price: float):
+        conn = db_connection.get_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'UPDATE users_currencies SET amount = amount + %s WHERE user_id = %s AND currency_id = %s', [amount, user_id, crypto_id])
+            cursor.execute(
+                'UPDATE users SET balance = balance - %s WHERE id = %s', [price, user_id])
+            cursor.execute(
+                "INSERT INTO operations(user_id, currency_id, type, amount) VALUES(%s, %s, 'Buy', %s)", [user_id, crypto_id, amount])
+            conn.commit()
+
+    def _add_user_crypto(self, user_id: int, crypto_id: int, amount: str, price: float):
+        conn = db_connection.get_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO users_currencies(user_id, currency_id, amount) VALUES(%s, %s, %s)', [user_id, crypto_id, amount])
+            cursor.execute(
+                'UPDATE users SET balance = balance - %s WHERE id = %s', [price, user_id])
+            cursor.execute(
+                "INSERT INTO operations(user_id, currency_id, type, amount) VALUES(%s, %s, 'Buy', %s)", [user_id, crypto_id, amount])
+            conn.commit()
+
+    def sell_crypto(self, user_id: int, crypto_name: str, amount: str):
+        crypto_id = db_connection.execute_query(
+            'SELECT id from currencies WHERE currency_name = %s', [crypto_name])[0][0]
+        user_crypto_amount = db_connection.execute_query(
+            'SELECT amount FROM users_currencies WHERE user_id = %s AND currency_id = %s', [user_id, crypto_id])
+
+        if not user_crypto_amount:
+            raise ValueError('User does not own this crypto')
+
+        if user_crypto_amount[0][0] < amount:
+            raise ValueError(f'User does not have {amount} of {crypto_name}')
+
+        price = self._get_price(crypto_name, amount)
+
+        self._remove_crypto_from_user(
+            user_id, crypto_id, user_crypto_amount[0][0], amount, price)
+
+    def _remove_crypto_from_user(self, user_id: int, crypto_id: int, user_amount: float, sold_amount: str, price: float):
+        conn = db_connection.get_connection()
+        with conn.cursor() as cursor:
+            if user_amount == sold_amount:
+                cursor.execute(
+                    'DELETE FROM users_currencies WHERE user_id = %s AND currency_id = %s', [user_id, crypto_id])
+            else:
+                cursor.execute(
+                    'UPDATE users_currencies SET amount = amount - %s WHERE user_id = %s AND currency_id = %s', [sold_amount, user_id, crypto_id])
+            cursor.execute(
+                'UPDATE users SET balance = balance + %s WHERE id = %s', [price, user_id])
+            cursor.execute(
+                "INSERT INTO operations(user_id, currency_id, type, amount) VALUES(%s, %s, 'Sell', %s)", [user_id, crypto_id, sold_amount])
+            conn.commit()

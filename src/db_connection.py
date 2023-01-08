@@ -1,14 +1,13 @@
+from src.sql_queries import delete_queries, create_queries, insert_currencies
 from psycopg2 import connect
 from dotenv import load_dotenv
 from os import getenv
 from sys import exit
-from src.sql_queries import delete_queries, create_queries, insert_currencies
 
 
 class DbConnection:
     def __init__(self):
         load_dotenv()
-
         self._connection = self._init_db_connect()
 
     def _init_db_connect(self):
@@ -62,6 +61,7 @@ class DbConnection:
 
     def get_connection(self):
         return self._connection
+
 
 db_connection = DbConnection()
 

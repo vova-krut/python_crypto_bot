@@ -1,7 +1,5 @@
-import telegram
-
-from src.user_repository import UserRepository
-from src.currency_repository import CurrencyRepository
+from src.repositories.user_repository import UserRepository
+from src.repositories.currency_repository import CurrencyRepository
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -96,13 +94,15 @@ class TelegramBot:
         return self.SELECT_TRANSACTION_AMOUNT
 
     async def _get_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        currency_balance, usd_balance = self._user_repository.get_balance(update.message.from_user.id)
+        currency_balance, usd_balance = self._user_repository.get_balance(
+            update.message.from_user.id)
         try:
-            currency_vs_balance = [f"{currency_name}: {balance}" for currency_name, balance in currency_balance.items()]
+            currency_vs_balance = [
+                f"{currency_name}: {balance}" for currency_name, balance in currency_balance.items()]
             currency_balance_table = "\n".join(currency_vs_balance)
         except:
             currency_balance_table = "You don't have any currency available."
-        self._messages.extend(await self._send_messages(update, [f"Currency balance:\n{currency_balance_table}", f"USD balance: {usd_balance}"]))
+        self._messages.extend(await self._send_messages(update, [f"Currency balance:\n{currency_balance_table}", f"USD balance: {usd_balance}"], reply_markup=self._create_keyboard()))
 
     async def _select_transaction_amount(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -124,41 +124,6 @@ class TelegramBot:
     async def _cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text('Okay, lets go back', reply_markup=self._create_keyboard())
         return ConversationHandler.END
-
-    def run(self):
-        buy_crypto_handler = ConversationHandler(
-            entry_points=[MessageHandler(
-                filters.Text('Buy crypto'), self._buy_crypto)],
-            states={
-                self.SELECT_CRYPTO: [CallbackQueryHandler(self._select_crypto)],
-                self.SELECT_AMOUNT: [MessageHandler(
-                    filters.TEXT, self._select_amount)]
-            },
-            fallbacks=[CommandHandler('cancel', self._cancel)],
-            allow_reentry=True
-        )
-
-        send_crypto_handler = ConversationHandler(
-            entry_points=[MessageHandler(
-                filters.Text('Make a transaction'), self._make_transaction)],
-            states={
-                self.PRINT_TRANSACTION_CRYPTO: [MessageHandler(filters.TEXT, self._print_transaction_crypto)],
-                self.SELECT_TRANSACTION_CRYPTO: [CallbackQueryHandler(self._select_transaction_crypto)],
-                self.SELECT_TRANSACTION_AMOUNT: [MessageHandler(
-                    filters.TEXT, self._select_transaction_amount)]
-            },
-            fallbacks=[CommandHandler('cancel', self._cancel)],
-            allow_reentry=True
-        )
-
-        get_balance = MessageHandler(filters.Text("Check balance"), self._get_balance)
-
-        self._app.add_handler(CommandHandler('start', self._start))
-        self._app.add_handler(buy_crypto_handler)
-        self._app.add_handler(send_crypto_handler)
-        self._app.add_handler(get_balance)
-
-        self._app.run_polling()
 
     async def _send_messages(self, update: Update, messages: list[str], reply_markup=None):
         if isinstance(messages, str):
@@ -189,6 +154,42 @@ class TelegramBot:
 
         return ReplyKeyboardMarkup(
             keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+    def run(self):
+        buy_crypto_handler = ConversationHandler(
+            entry_points=[MessageHandler(
+                filters.Text('Buy crypto'), self._buy_crypto)],
+            states={
+                self.SELECT_CRYPTO: [CallbackQueryHandler(self._select_crypto)],
+                self.SELECT_AMOUNT: [MessageHandler(
+                    filters.TEXT, self._select_amount)]
+            },
+            fallbacks=[CommandHandler('cancel', self._cancel)],
+            allow_reentry=True
+        )
+
+        send_crypto_handler = ConversationHandler(
+            entry_points=[MessageHandler(
+                filters.Text('Make a transaction'), self._make_transaction)],
+            states={
+                self.PRINT_TRANSACTION_CRYPTO: [MessageHandler(filters.TEXT, self._print_transaction_crypto)],
+                self.SELECT_TRANSACTION_CRYPTO: [CallbackQueryHandler(self._select_transaction_crypto)],
+                self.SELECT_TRANSACTION_AMOUNT: [MessageHandler(
+                    filters.TEXT, self._select_transaction_amount)]
+            },
+            fallbacks=[CommandHandler('cancel', self._cancel)],
+            allow_reentry=True
+        )
+
+        get_balance = MessageHandler(filters.Text(
+            "Check balance"), self._get_balance)
+
+        self._app.add_handler(CommandHandler('start', self._start))
+        self._app.add_handler(buy_crypto_handler)
+        self._app.add_handler(send_crypto_handler)
+        self._app.add_handler(get_balance)
+
+        self._app.run_polling()
 
     def stop(self):
         self._app.stop()

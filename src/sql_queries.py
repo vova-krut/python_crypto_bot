@@ -6,7 +6,8 @@ create_transactions_table = '''
         user_id INT REFERENCES users (id) NOT NULL,
         currency_id INT REFERENCES currencies (id) NOT NULL,
         type TEXT NOT NULL,
-        amount NUMERIC NOT NULL
+        amount NUMERIC NOT NULL,
+        date TIMESTAMP NOT NULL DEFAULT NOW()
     );
 '''
 
@@ -16,6 +17,7 @@ create_operations_table = '''
         id SERIAL PRIMARY KEY,
         sender_id INT REFERENCES users (id) NOT NULL,
         receiver_id INT REFERENCES users (id) NOT NULL,
+        currency_id INT REFERENCES currencies (id),
         amount NUMERIC NOT NULL,
         date TIMESTAMP NOT NULL DEFAULT NOW()
     );

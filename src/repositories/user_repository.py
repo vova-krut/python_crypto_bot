@@ -1,5 +1,5 @@
 from src.db_connection import db_connection
-from src.currency_repository import CurrencyRepository
+from src.repositories.currency_repository import CurrencyRepository
 
 
 class UserRepository:
@@ -15,7 +15,9 @@ class UserRepository:
             'SELECT * FROM users WHERE id = %s', [user_id])
 
     def get_balance(self, user_id: int):
-        currency_balance = self._currency_repository.get_currencies_for_user(user_id)
-        usd_balance = db_connection.execute_query('SELECT balance FROM users WHERE id = %s', [user_id])[0][0]
+        currency_balance = self._currency_repository.get_currencies_for_user(
+            user_id)
+        usd_balance = db_connection.execute_query(
+            'SELECT balance FROM users WHERE id = %s', [user_id])[0][0]
 
         return currency_balance, usd_balance
